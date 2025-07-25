@@ -57,7 +57,7 @@ async def visit_agoda_homepage(p):
     user_agent = random.choice(USER_AGENTS[browser_name])
     print(f"Using user agent: {user_agent}")
     browser = await p.chromium.launch(
-        headless=True,
+        headless=False,
         args=['--disable-blink-features=AutomationControlled']
     )
     context = await browser.new_context(
@@ -73,6 +73,18 @@ async def visit_agoda_homepage(p):
     await page.evaluate("window.scrollBy(0, window.innerHeight/8)")
     await random_delay(1, 2)
     return page, context, browser
+
+
+async def click_back_if_july(page, date_str):
+    """
+    If the month of date_str is July, click the 'Previous Month' button once before selecting the date.
+    """
+    date_obj = datetime.strptime(date_str, "%Y-%m-%d")
+    if date_obj.month == 7:  # July
+        await page.click("button[aria-label='Previous Month']")
+        await asyncio.sleep(0.5)
+    await page.click(f"xpath=//span[@data-selenium-date='{date_str}']")
+    await random_delay(1, 2)
 
 
 async def search_agoda_homepage(page, location: str, check_in_date: str, check_out_date: str, adults: int, star_rating: Optional[int] = None, currency: Optional[str] = None):
@@ -96,12 +108,10 @@ async def search_agoda_homepage(page, location: str, check_in_date: str, check_o
         await page.click("xpath=//*[@id='check-in-box']")
         await random_delay(1, 2)
         print(f"Clicked check-in box, selecting date: {check_in_date}")
-
-        await page.click(f"xpath=//span[@data-selenium-date='{check_in_date}']")
-        await random_delay(1, 2)
+        await click_back_if_july(page, check_in_date)
         print(f"Selected check-in date: {check_in_date}")
 
-        # Select check-out date
+        # Select check-out date (always direct, never click back)
         await page.click(f"xpath=//span[@data-selenium-date='{check_out_date}']")
         await random_delay(1, 2)
         print(f"Selected check-out date: {check_out_date}")
