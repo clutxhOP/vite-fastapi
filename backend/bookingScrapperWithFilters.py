@@ -474,7 +474,7 @@ class ModernBookingScraper:
         )
         print("🚀 Scrolling page to load all hotel results. This may take a moment...")
 
-        async with AsyncWebCrawler(headless=True, timeout=180000) as crawler:
+        async with AsyncWebCrawler(headless=True, timeout=280000) as crawler:
             result = await crawler.arun(url=search_url, config=config)
 
             if not result.success:
