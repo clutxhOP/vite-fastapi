@@ -57,7 +57,7 @@ async def visit_agoda_homepage(p):
     user_agent = random.choice(USER_AGENTS[browser_name])
     print(f"Using user agent: {user_agent}")
     browser = await p.chromium.launch(
-        headless=True,
+        headless=False,
         args=['--disable-blink-features=AutomationControlled']
     )
     context = await browser.new_context(
@@ -100,27 +100,47 @@ async def search_agoda_homepage(page, location: str, check_in_date: str, check_o
         await random_delay(1, 2)
         print(f"Clicked check-in box, selecting date: {check_in_date}")
 
-        # Click Next Month button based on target month
+        # Navigate to the correct month for check-in date
         check_in_obj = datetime.strptime(check_in_date, "%Y-%m-%d")
-        if check_in_obj.month == 10:  # October
-            await page.click("button[aria-label='Next Month']")
-            await asyncio.sleep(0.3)
-            await page.click("button[aria-label='Next Month']")
-            await asyncio.sleep(0.3)
-        elif check_in_obj.month == 11:  # November
-            await page.click("button[aria-label='Next Month']")
-            await asyncio.sleep(0.3)
-            await page.click("button[aria-label='Next Month']")
-            await asyncio.sleep(0.3)
-            await page.click("button[aria-label='Next Month']")
-            await asyncio.sleep(0.3)
+        current_date = datetime.now()
+        
+        # Calculate how many months ahead the check-in date is
+        months_diff = (check_in_obj.year - current_date.year) * 12 + (check_in_obj.month - current_date.month)
+        
+        # If check-in date is more than 1 month ahead, click Next Month button
+        if months_diff > 1:
+            clicks_needed = months_diff - 1  # -1 because current month is already visible
+            print(f"Check-in date is {months_diff} months ahead, clicking Next Month {clicks_needed} times")
+            for _ in range(clicks_needed):
+                await page.click("button[aria-label='Next Month']", timeout=60000)
+                await asyncio.sleep(0.5)
 
-        await page.click(f"xpath=//span[@data-selenium-date='{check_in_date}']")
+        await page.click(f"xpath=//span[@data-selenium-date='{check_in_date}']", timeout=60000)
         await random_delay(1, 2)
         print(f"Selected check-in date: {check_in_date}")
 
-        # Select check-out date
-        await page.click(f"xpath=//span[@data-selenium-date='{check_out_date}']")
+        # Navigate to the correct month for check-out date if different from check-in
+        check_out_obj = datetime.strptime(check_out_date, "%Y-%m-%d")
+        check_out_months_diff = (check_out_obj.year - current_date.year) * 12 + (check_out_obj.month - current_date.month)
+        
+        # If check-out date is in a different month than check-in, navigate to it
+        if check_out_months_diff != months_diff:
+            if check_out_months_diff > months_diff:
+                # Check-out is further ahead, need to click Next Month more times
+                additional_clicks = check_out_months_diff - months_diff
+                print(f"Check-out date is {additional_clicks} months further ahead, clicking Next Month {additional_clicks} more times")
+                for _ in range(additional_clicks):
+                    await page.click("button[aria-label='Next Month']", timeout=60000)
+                    await asyncio.sleep(0.5)
+            else:
+                # Check-out is behind check-in, need to click Previous Month
+                additional_clicks = months_diff - check_out_months_diff
+                print(f"Check-out date is {additional_clicks} months behind, clicking Previous Month {additional_clicks} times")
+                for _ in range(additional_clicks):
+                    await page.click("button[aria-label='Previous Month']", timeout=60000)
+                    await asyncio.sleep(0.5)
+
+        await page.click(f"xpath=//span[@data-selenium-date='{check_out_date}']", timeout=60000)
         await random_delay(1, 2)
         print(f"Selected check-out date: {check_out_date}")
 
